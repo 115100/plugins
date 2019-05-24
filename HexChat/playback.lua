@@ -17,7 +17,6 @@ hexchat.register('Playback', '1', "Integration with ZNC's Playback module")
 ]]
 
 local CAP_NAME = 'znc.in/playback'
-local servers = {} -- Table of id to timestamp
 
 -- Request capability
 hexchat.hook_print('Capability List', function (args)
@@ -36,14 +35,14 @@ end)
 
 -- Capability supported
 hexchat.hook_print('Capability Acknowledgement', function (args)
-	local id = hexchat.prefs['id']
-	if args[2]:find(CAP_NAME) and not servers[id] then
-		servers[id] = 0 -- New server
+	local id = 'playback_' .. hexchat.prefs['id']
+	if args[2]:find(CAP_NAME) and not hexchat.pluginprefs[id] then
+		hexchat.pluginprefs[id] = 0 -- New server
 	end
 end)
 
 local function play_history()
-	local timestamp = servers[hexchat.prefs['id']]
+	local timestamp = hexchat.pluginprefs['playback_' .. hexchat.prefs['id']]
 
 	if timestamp then
 		hexchat.command('quote PRIVMSG *playback :play * ' .. tostring(timestamp))
@@ -61,8 +60,8 @@ end)
 
 -- Remove history when closed
 hexchat.hook_print('Close Context', function (args)
-	local id = hexchat.prefs['id']
-	local timestamp = servers[id]
+	local id = 'playback_' .. hexchat.prefs['id']
+	local timestamp = hexchat.pluginprefs[id]
 	if not timestamp then
 		return
 	end
@@ -71,14 +70,14 @@ hexchat.hook_print('Close Context', function (args)
 	if ctx_type == 3 then -- Dialog
 		hexchat.command('quote PRIVMSG *playback :clear ' .. hexchat.get_info('channel'))
 	elseif ctx_type == 1 then -- Server
-		servers[id] = nil
+		hexchat.pluginprefs[id] = nil
 	end
 end)
 
 -- Store the timestamp of the latest message on the server
 hexchat.hook_server_attrs('PRIVMSG', function (word, word_eol, attrs)
-	local id = hexchat.prefs['id']
-	if servers[id] then
-		servers[id] = GLib.get_real_time() / 1000000 -- epoch in seconds with milisecond precision UTC
+	local id = 'playback_' .. hexchat.prefs['id']
+	if hexchat.pluginprefs[id] then
+		hexchat.pluginprefs[id] = GLib.get_real_time() / 1000000 -- epoch in seconds with milisecond precision UTC
 	end
 end, hexchat.PRI_LOWEST)
